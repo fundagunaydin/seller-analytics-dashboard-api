@@ -1,0 +1,32 @@
+# Build results
+bin/
+obj/
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio files
+.vs/
+
+# Test results
+*.trx
+*.TestResults/
+TestResults/
+
+# Logs
+*.log
+
+# Entity Framework
+Migrations/
+
+# SQLite / Local DB files
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Other
+*.cache
