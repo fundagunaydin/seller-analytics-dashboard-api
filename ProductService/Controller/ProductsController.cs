@@ -1,20 +1,26 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Elastic.Clients.Elasticsearch.Nodes;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json;
 using ProductService.Data;
 using StackExchange.Redis;
+using System.Net;
+using Elastic.Clients.Elasticsearch;
+using Elastic.Transport;
 
 [ApiController]
 [Route("api/[controller]")]
 public class ProductsController : ControllerBase
 {
     private readonly AppDbContext _context;
-    private readonly IDatabase _redis;
+    private readonly IDatabase _redis; 
+    private readonly ElasticsearchClient _esClient;
 
-    public ProductsController(AppDbContext context)
+    public ProductsController(AppDbContext context, ElasticsearchClient esClient)
     {
         _context = context;
+        _esClient = esClient;
 
         var mux = ConnectionMultiplexer.Connect("localhost:6379");
         _redis = mux.GetDatabase();
@@ -77,6 +83,11 @@ public class ProductsController : ControllerBase
         await _context.SaveChangesAsync();
 
         await _redis.HashSetAsync("products_list", product.Id, JsonConvert.SerializeObject(product));
+
+        var response = await _esClient.IndexAsync(product, i => i.Index("products"));
+
+        if (!response.IsValidResponse)
+            return BadRequest(response.DebugInformation);
 
         return Ok(product);
     }
@@ -150,6 +161,25 @@ public class ProductsController : ControllerBase
         }
 
         return Ok(products);
+    }
+
+    [HttpGet("search")]
+    public async Task<IActionResult> Search(string query, [FromServices] ElasticsearchClient esClient)
+    {
+        var response = await esClient.SearchAsync<Product>(s => s
+            .Index("products")
+            .Query(q => q
+                .MultiMatch(m => m
+                    .Fields(new[] { "name", "category", "description" })
+                    .Query(query)
+                )
+            )
+        );
+
+        if (!response.IsValidResponse)
+            return BadRequest(response.DebugInformation);
+
+        return Ok(response.Documents);
     }
 
 }

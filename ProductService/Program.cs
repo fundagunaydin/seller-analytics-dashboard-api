@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using ProductService.Data;
+using Elastic.Clients.Elasticsearch;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,13 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddSingleton<ElasticsearchClient>(sp =>
+{
+    var settings = new ElasticsearchClientSettings(new Uri("http://localhost:9200"))
+        .DefaultIndex("products");
+
+    return new ElasticsearchClient(settings);
+});
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -27,7 +35,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Product Service v1");
-        c.RoutePrefix = string.Empty; // <-- bu satýr önemli
+        c.RoutePrefix = string.Empty; 
     });
 }
 
